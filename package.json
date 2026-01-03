@@ -1,0 +1,27 @@
+{
+  "name": "mcp-openai",
+  "version": "1.0.0",
+  "description": "MCP server for Claude Code providing access to OpenAI GPT-5.2, web search, and deep research",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mcp-openai": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "openai": "^4",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  },
+  "license": "MIT"
+}
