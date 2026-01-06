@@ -17,6 +17,8 @@ import type {
 import { MODEL_IDS, MCPError } from "../types.js";
 import { logger } from "../logger.js";
 import { withRetry, withTimeout } from "../retry.js";
+import { calculateCost } from "../pricing.js";
+import { costTracker } from "../cost-tracker.js";
 
 // Default timeout for web search requests (2 minutes)
 const DEFAULT_TIMEOUT_MS = 120000;
@@ -156,6 +158,26 @@ export class OpenAIWebSearchProvider implements WebSearchProvider {
 
       const durationMs = Date.now() - startTime;
 
+      // Calculate cost
+      const cost = calculateCost(
+        model,
+        usage?.promptTokens || 0,
+        usage?.completionTokens || 0
+      );
+
+      // Track cumulative cost
+      costTracker.trackCost({
+        timestamp: new Date().toISOString(),
+        model,
+        operation: "web_search",
+        inputCost: cost.inputCost,
+        outputCost: cost.outputCost,
+        totalCost: cost.totalCost,
+        estimated: cost.estimated,
+        promptTokens: usage?.promptTokens,
+        completionTokens: usage?.completionTokens,
+      });
+
       // Log usage statistics
       logger.logUsage({
         timestamp: new Date().toISOString(),
@@ -171,6 +193,7 @@ export class OpenAIWebSearchProvider implements WebSearchProvider {
         text,
         model,
         usage,
+        cost,
         sources: sources.length > 0 ? sources : undefined,
       };
     } catch (error: any) {

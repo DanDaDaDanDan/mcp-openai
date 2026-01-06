@@ -125,6 +125,15 @@ export interface DeepResearchOptions {
 // Result Types
 // ============================================================================
 
+// Cost information returned with results
+export interface CostInfo {
+  inputCost: number;
+  outputCost: number;
+  totalCost: number;
+  currency: "USD";
+  estimated: boolean;
+}
+
 // Common result structure
 export interface GenerateResult {
   text: string;
@@ -135,6 +144,7 @@ export interface GenerateResult {
     totalTokens?: number;
     reasoningTokens?: number;
   };
+  cost?: CostInfo;
 }
 
 // Web search result with sources
@@ -152,6 +162,12 @@ export interface DeepResearchResult {
   responseId: string;
   status: "completed" | "failed";
   durationMs: number;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+  cost?: CostInfo;
 }
 
 // ============================================================================

@@ -29,6 +29,8 @@ import {
 } from "../types.js";
 import { logger } from "../logger.js";
 import { withRetry, withTimeout } from "../retry.js";
+import { calculateCost } from "../pricing.js";
+import { costTracker } from "../cost-tracker.js";
 
 // Default timeout for generation requests (5 minutes)
 const DEFAULT_TIMEOUT_MS = 300000;
@@ -201,6 +203,26 @@ export class OpenAITextProvider implements TextProvider {
 
       const durationMs = Date.now() - startTime;
 
+      // Calculate cost
+      const cost = calculateCost(
+        model,
+        usage?.promptTokens || 0,
+        usage?.completionTokens || 0
+      );
+
+      // Track cumulative cost
+      costTracker.trackCost({
+        timestamp: new Date().toISOString(),
+        model,
+        operation: "generate_text",
+        inputCost: cost.inputCost,
+        outputCost: cost.outputCost,
+        totalCost: cost.totalCost,
+        estimated: cost.estimated,
+        promptTokens: usage?.promptTokens,
+        completionTokens: usage?.completionTokens,
+      });
+
       // Log usage statistics
       logger.logUsage({
         timestamp: new Date().toISOString(),
@@ -216,6 +238,7 @@ export class OpenAITextProvider implements TextProvider {
         text,
         model,
         usage,
+        cost,
       };
     } catch (error: any) {
       const durationMs = Date.now() - startTime;

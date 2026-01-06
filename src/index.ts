@@ -54,6 +54,7 @@ import {
   type ReasoningSummary,
 } from "./types.js";
 import { logger } from "./logger.js";
+import { costTracker } from "./cost-tracker.js";
 
 // Configuration from environment - fail fast if missing
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -249,6 +250,23 @@ const TOOLS = [
       required: [],
     },
   },
+  {
+    name: "get_cost_summary",
+    description:
+      "Get cumulative cost summary for all API calls made during this session. " +
+      "Shows total costs broken down by model and operation type.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        reset: {
+          type: "boolean",
+          description: "If true, reset the cost counter after returning summary",
+          default: false,
+        },
+      },
+      required: [],
+    },
+  },
 ];
 
 // Handle list tools request
@@ -376,6 +394,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
         _meta: {
           model: result.model,
           usage: result.usage,
+          cost: result.cost,
         },
       };
     } catch (error: any) {
@@ -461,6 +480,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
         _meta: {
           model: result.model,
           usage: result.usage,
+          cost: result.cost,
           sourceCount: result.sources?.length || 0,
         },
       };
@@ -547,6 +567,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
           responseId: result.responseId,
           durationMs: result.durationMs,
           durationMinutes: Math.round((result.durationMs / 1000 / 60) * 10) / 10,
+          usage: result.usage,
+          cost: result.cost,
         },
       };
     } catch (error: any) {
@@ -563,6 +585,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
         isError: true,
       };
     }
+  }
+
+  // Get cost summary tool
+  if (name === "get_cost_summary") {
+    const { reset } = args as { reset?: boolean };
+
+    const summary = costTracker.getSummary();
+
+    if (reset) {
+      costTracker.reset();
+    }
+
+    // Format costs for display
+    const formatCost = (n: number) => `$${n.toFixed(6)}`;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              summary: {
+                totalCost: formatCost(summary.totalCost),
+                callCount: summary.callCount,
+                estimatedCosts: formatCost(summary.estimatedCosts),
+                since: summary.since,
+                byModel: Object.fromEntries(
+                  Object.entries(summary.byModel).map(([k, v]) => [k, formatCost(v)])
+                ),
+                byOperation: Object.fromEntries(
+                  Object.entries(summary.byOperation).map(([k, v]) => [k, formatCost(v)])
+                ),
+              },
+              wasReset: reset || false,
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
   }
 
   // Unknown tool

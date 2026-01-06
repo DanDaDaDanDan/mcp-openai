@@ -21,6 +21,8 @@ import type {
 } from "../types.js";
 import { MODEL_IDS, DEEP_RESEARCH_MODELS } from "../types.js";
 import { logger } from "../logger.js";
+import { calculateCost } from "../pricing.js";
+import { costTracker } from "../cost-tracker.js";
 
 // Default timeout: 30 minutes (research typically takes 5-30 min)
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -76,6 +78,26 @@ export class OpenAIDeepResearchProvider implements DeepResearchProvider {
       resultLength: result.text.length,
     });
 
+    // Calculate cost
+    const cost = calculateCost(
+      model,
+      result.usage?.promptTokens || 0,
+      result.usage?.completionTokens || 0
+    );
+
+    // Track cumulative cost
+    costTracker.trackCost({
+      timestamp: new Date().toISOString(),
+      model,
+      operation: "deep_research",
+      inputCost: cost.inputCost,
+      outputCost: cost.outputCost,
+      totalCost: cost.totalCost,
+      estimated: cost.estimated || !result.usage, // Mark as estimated if no usage data
+      promptTokens: result.usage?.promptTokens,
+      completionTokens: result.usage?.completionTokens,
+    });
+
     // Log usage
     logger.logUsage({
       timestamp: new Date().toISOString(),
@@ -84,6 +106,7 @@ export class OpenAIDeepResearchProvider implements DeepResearchProvider {
       operation: "deep_research",
       durationMs,
       success: result.status === "completed",
+      metrics: result.usage,
     });
 
     return {
@@ -91,6 +114,8 @@ export class OpenAIDeepResearchProvider implements DeepResearchProvider {
       model,
       responseId,
       durationMs,
+      usage: result.usage,
+      cost,
     };
   }
 
@@ -170,7 +195,7 @@ export class OpenAIDeepResearchProvider implements DeepResearchProvider {
     timeoutMs: number,
     pollIntervalMs: number,
     startTime: number
-  ): Promise<{ text: string; status: "completed" | "failed" }> {
+  ): Promise<{ text: string; status: "completed" | "failed"; usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number } }> {
     while (true) {
       const elapsed = Date.now() - startTime;
 
@@ -207,9 +232,20 @@ export class OpenAIDeepResearchProvider implements DeepResearchProvider {
             throw new Error("API_ERROR: Research completed but no output text found");
           }
 
+          // Extract usage if available
+          const rawUsage = (response as any).usage;
+          const usage = rawUsage
+            ? {
+                promptTokens: rawUsage.input_tokens,
+                completionTokens: rawUsage.output_tokens,
+                totalTokens: (rawUsage.input_tokens || 0) + (rawUsage.output_tokens || 0),
+              }
+            : undefined;
+
           return {
             text,
             status: "completed",
+            usage,
           };
         }
 
