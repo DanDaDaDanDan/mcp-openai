@@ -213,7 +213,8 @@ const TOOLS = [
     description:
       "Perform comprehensive research using OpenAI's deep research models. " +
       "The agent searches the web, analyzes multiple sources, and produces detailed research reports. " +
-      "This is a long-running operation that typically takes 5-30 minutes to complete.",
+      "This is a long-running operation that typically takes 5-60 minutes to complete. " +
+      "If it times out, use check_research with the returned response_id to retrieve results.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -232,13 +233,29 @@ const TOOLS = [
         timeout_minutes: {
           type: "number",
           description:
-            "Maximum time to wait for research completion in minutes (default: 30, max: 60)",
-          default: 30,
+            "Maximum time to wait for research completion in minutes (default: 60, max: 120)",
+          default: 60,
           minimum: 5,
-          maximum: 60,
+          maximum: 120,
         },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "check_research",
+    description:
+      "Check the status of a running deep research task or retrieve results after a timeout. " +
+      "Use this with the response_id returned from deep_research if it times out or to poll for completion.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        response_id: {
+          type: "string",
+          description: "The response ID returned from a previous deep_research call",
+        },
+      },
+      required: ["response_id"],
     },
   },
   {
@@ -538,14 +555,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
       };
     }
 
-    // Convert timeout from minutes to milliseconds
-    const timeoutMs = (timeoutMinutes || 30) * 60 * 1000;
+    // Convert timeout from minutes to milliseconds (default 60 minutes)
+    const timeoutMs = (timeoutMinutes || 60) * 60 * 1000;
 
     try {
       logger.info("Starting deep research", {
         queryLength: query.length,
         model: model || "o3-deep-research",
-        timeoutMinutes: timeoutMinutes || 30,
+        timeoutMinutes: timeoutMinutes || 60,
       });
 
       const result = await deepResearchProvider.research({
@@ -574,6 +591,62 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
     } catch (error: any) {
       const errorMessage = error.message || "Unknown error during deep research";
       logger.error("Deep research failed", { error: errorMessage });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${errorMessage}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
+  // Check research status tool
+  if (name === "check_research") {
+    const { response_id: responseId } = args as {
+      response_id: string;
+    };
+
+    // Validate response ID
+    if (!responseId || responseId.trim().length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: response_id is required",
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    try {
+      logger.info("Checking research status", { responseId });
+
+      const result = await deepResearchProvider.checkResearch(responseId);
+
+      // Return result (could be completed, in_progress, or failed)
+      return {
+        content: [
+          {
+            type: "text",
+            text: result.text,
+          },
+        ],
+        _meta: {
+          model: result.model,
+          responseId: result.responseId,
+          status: result.status,
+          durationMs: result.durationMs,
+          usage: result.usage,
+        },
+      };
+    } catch (error: any) {
+      const errorMessage = error.message || "Unknown error checking research status";
+      logger.error("Check research failed", { error: errorMessage, responseId });
 
       return {
         content: [

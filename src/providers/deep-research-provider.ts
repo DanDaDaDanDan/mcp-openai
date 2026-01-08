@@ -24,8 +24,8 @@ import { logger } from "../logger.js";
 import { calculateCost } from "../pricing.js";
 import { costTracker } from "../cost-tracker.js";
 
-// Default timeout: 30 minutes (research typically takes 5-30 min)
-const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
+// Default timeout: 60 minutes (research typically takes 5-60 min)
+const DEFAULT_TIMEOUT_MS = 60 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 10 * 1000;
 
 export class OpenAIDeepResearchProvider implements DeepResearchProvider {
@@ -279,6 +279,80 @@ export class OpenAIDeepResearchProvider implements DeepResearchProvider {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  /**
+   * Check status of a running research task by response ID
+   * Can be used to resume/retrieve results after a timeout
+   */
+  async checkResearch(responseId: string): Promise<DeepResearchResult> {
+    const startTime = Date.now();
+
+    logger.info("Checking research status", { responseId });
+
+    try {
+      const response = await this.client.responses.retrieve(responseId);
+
+      const status = (response as any).status;
+
+      logger.info("Research status retrieved", {
+        responseId,
+        status,
+      });
+
+      if (status === "completed") {
+        const text = (response as any).output_text || "";
+
+        if (!text) {
+          throw new Error("API_ERROR: Research completed but no output text found");
+        }
+
+        // Extract usage if available
+        const rawUsage = (response as any).usage;
+        const usage = rawUsage
+          ? {
+              promptTokens: rawUsage.input_tokens,
+              completionTokens: rawUsage.output_tokens,
+              totalTokens: (rawUsage.input_tokens || 0) + (rawUsage.output_tokens || 0),
+            }
+          : undefined;
+
+        return {
+          text,
+          status: "completed",
+          model: "o3-deep-research",
+          responseId,
+          durationMs: Date.now() - startTime,
+          usage,
+        };
+      }
+
+      if (status === "failed") {
+        const errorMessage = (response as any).error?.message || "Research failed with unknown error";
+        throw new Error(`RESEARCH_FAILED: ${errorMessage}`);
+      }
+
+      // Still in progress
+      return {
+        text: `Research still in progress. Status: ${status}. Check again later using response ID: ${responseId}`,
+        status: "in_progress" as any,
+        model: "o3-deep-research",
+        responseId,
+        durationMs: Date.now() - startTime,
+      };
+    } catch (error: any) {
+      // Re-throw our own errors
+      if (error.message?.startsWith("API_ERROR:") || error.message?.startsWith("RESEARCH_FAILED:")) {
+        throw error;
+      }
+
+      // Handle not found
+      if (error.status === 404) {
+        throw new Error(`NOT_FOUND: Research task not found - response ID: ${responseId}`);
+      }
+
+      throw new Error(`API_ERROR: Failed to check research status: ${error.message}`);
+    }
+  }
+
   getModelInfo(model: DeepResearchModel = "o3-deep-research"): ModelInfo {
     const modelInfoMap: Record<DeepResearchModel, ModelInfo> = {
       "o3-deep-research": {
@@ -290,7 +364,7 @@ export class OpenAIDeepResearchProvider implements DeepResearchProvider {
         maxOutput: 100000,
         description:
           "Deep research specialist. Conducts thorough web research and produces comprehensive reports. " +
-          "Takes 5-30 minutes. Best for complex research questions.",
+          "Takes 5-60 minutes. Best for complex research questions.",
       },
       "o4-mini-deep-research": {
         id: "o4-mini-deep-research",
@@ -301,7 +375,7 @@ export class OpenAIDeepResearchProvider implements DeepResearchProvider {
         maxOutput: 100000,
         description:
           "Faster, more affordable deep research. Still produces thorough reports but optimized for speed. " +
-          "Takes 5-20 minutes. Good for simpler research tasks.",
+          "Takes 5-30 minutes. Good for simpler research tasks.",
       },
     };
 
