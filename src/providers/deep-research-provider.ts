@@ -24,8 +24,8 @@ import { logger } from "../logger.js";
 import { calculateCost } from "../pricing.js";
 import { costTracker } from "../cost-tracker.js";
 
-// Default timeout: 30 minutes (research typically takes 5-30 min)
-const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
+// Default timeout: 60 minutes (research typically takes 5-30 min)
+const DEFAULT_TIMEOUT_MS = 60 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 10 * 1000;
 
 export class OpenAIDeepResearchProvider implements DeepResearchProvider {

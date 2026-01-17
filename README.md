@@ -87,7 +87,7 @@ Perform comprehensive research (5-30 minutes).
 **Parameters:**
 - `query` (required): Research question
 - `model`: `o3-deep-research` (default), `o4-mini-deep-research`
-- `timeout_minutes`: Default 30, max 60
+- `timeout_minutes`: Default 60, max 60
 
 ### list_models
 
