@@ -20,8 +20,8 @@ import { withRetry, withTimeout } from "../retry.js";
 import { calculateCost } from "../pricing.js";
 import { costTracker } from "../cost-tracker.js";
 
-// Default timeout for web search requests (2 minutes)
-const DEFAULT_TIMEOUT_MS = 120000;
+// Default timeout for web search requests (60 minutes)
+const DEFAULT_TIMEOUT_MS = 60 * 60 * 1000;
 
 // Maximum allowed domains for filtering
 const MAX_ALLOWED_DOMAINS = 100;

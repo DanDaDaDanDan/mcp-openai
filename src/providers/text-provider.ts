@@ -32,8 +32,8 @@ import { withRetry, withTimeout } from "../retry.js";
 import { calculateCost } from "../pricing.js";
 import { costTracker } from "../cost-tracker.js";
 
-// Default timeout for generation requests (5 minutes)
-const DEFAULT_TIMEOUT_MS = 300000;
+// Default timeout for generation requests (60 minutes for extended thinking)
+const DEFAULT_TIMEOUT_MS = 60 * 60 * 1000;
 
 export class OpenAITextProvider implements TextProvider {
   private client: OpenAI;
