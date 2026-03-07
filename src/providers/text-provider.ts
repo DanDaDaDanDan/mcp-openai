@@ -35,6 +35,7 @@ import { logger } from "../logger.js";
 import { withRetry, withTimeout } from "../retry.js";
 import { calculateCost } from "../pricing.js";
 import { costTracker } from "../cost-tracker.js";
+import { FILE_TOOL_DEFINITIONS, executeFileTool } from "../file-tools.js";
 
 // Default timeout for generation requests (120 minutes for extended thinking)
 const DEFAULT_TIMEOUT_MS = 120 * 60 * 1000;
@@ -201,6 +202,7 @@ export class OpenAITextProvider implements TextProvider {
       temperature,
       jsonSchema,
       attachments,
+      enableTools = false,
     } = options;
 
     const startTime = Date.now();
@@ -308,6 +310,18 @@ export class OpenAITextProvider implements TextProvider {
         requestOptions.temperature = temperature;
       }
 
+      // Add file tools if enabled
+      if (enableTools) {
+        requestOptions.tools = FILE_TOOL_DEFINITIONS.map((t) => ({
+          type: "function" as const,
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters,
+          },
+        }));
+      }
+
       logger.debugLog("Text generation API request", {
         model: requestOptions.model,
         hasSystemPrompt: !!systemPrompt,
@@ -316,22 +330,84 @@ export class OpenAITextProvider implements TextProvider {
         reasoningSummary,
         maxOutputTokens,
         temperature: requestOptions.temperature,
+        enableTools,
       });
 
+      const retryOpts = {
+        maxRetries: 2,
+        retryableErrors: ["RATE_LIMIT", "429", "503", "502", "ECONNRESET", "ETIMEDOUT"],
+        context: "text-generation",
+      };
+
       // Use retry wrapper for transient errors and timeout protection
-      const response = await withRetry(
+      let response = await withRetry(
         () =>
           withTimeout(
             () => this.client.responses.create(requestOptions),
             DEFAULT_TIMEOUT_MS,
             "text-generation"
           ),
-        {
-          maxRetries: 2,
-          retryableErrors: ["RATE_LIMIT", "429", "503", "502", "ECONNRESET", "ETIMEDOUT"],
-          context: "text-generation",
-        }
+        retryOpts
       );
+
+      // Agentic tool-calling loop: let the model call file tools until it produces a final answer
+      if (enableTools) {
+        let toolRound = 0;
+        while (true) {
+          const output = (response as any).output || [];
+          const functionCalls = output.filter((item: any) => item.type === "function_call");
+          if (functionCalls.length === 0) break;
+
+          toolRound++;
+          logger.debugLog("Tool call round", {
+            round: toolRound,
+            toolCalls: functionCalls.map((fc: any) => ({ name: fc.name, args: fc.arguments })),
+          });
+
+          // Execute each tool call locally
+          const toolOutputs = functionCalls.map((fc: any) => {
+            const args = JSON.parse(fc.arguments);
+            const result = executeFileTool(fc.name, args);
+            logger.debugLog("Tool result", {
+              tool: fc.name,
+              args,
+              resultLength: result.length,
+            });
+            return {
+              type: "function_call_output",
+              call_id: fc.call_id,
+              output: result,
+            };
+          });
+
+          // Continue conversation with tool results
+          const continueOptions: any = {
+            model: requestOptions.model,
+            previous_response_id: (response as any).id,
+            input: toolOutputs,
+            tools: requestOptions.tools,
+            max_output_tokens: requestOptions.max_output_tokens,
+            text: requestOptions.text,
+          };
+          if (requestOptions.reasoning) {
+            continueOptions.reasoning = requestOptions.reasoning;
+          }
+
+          response = await withRetry(
+            () =>
+              withTimeout(
+                () => this.client.responses.create(continueOptions),
+                DEFAULT_TIMEOUT_MS,
+                `text-generation-tool-round-${toolRound}`
+              ),
+            retryOpts
+          );
+        }
+
+        if (toolRound > 0) {
+          logger.debugLog("Tool calling completed", { totalRounds: toolRound });
+        }
+      }
 
       logger.debugLog("Text generation API response", {
         model,
@@ -342,7 +418,7 @@ export class OpenAITextProvider implements TextProvider {
       // Extract text from response
       const text = (response as any).output_text || "";
 
-      // Get usage metadata
+      // Get usage metadata from final response
       const usage = (response as any).usage
         ? {
             promptTokens: (response as any).usage.input_tokens,

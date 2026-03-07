@@ -204,6 +204,14 @@ const TOOLS = [
             },
           },
         },
+        enable_tools: {
+          type: "boolean",
+          description:
+            "Enable built-in file tools (read_file, list_directory, grep_search) that the model " +
+            "can call during generation to explore the local filesystem for additional context. " +
+            "The model will autonomously decide when to read files or search code.",
+          default: false,
+        },
       },
       required: ["prompt"],
     },
@@ -377,6 +385,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
       temperature,
       json_schema: jsonSchema,
       attachments,
+      enable_tools: enableTools,
     } = args as {
       prompt: string;
       system_prompt?: string;
@@ -399,6 +408,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
         media_type?: string;
         filename?: string;
       }>;
+      enable_tools?: boolean;
     };
 
     // Validate prompt
@@ -439,6 +449,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
         temperature,
         jsonSchema,
         attachments,
+        enableTools,
       });
 
       // Return successful result

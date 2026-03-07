@@ -136,6 +136,7 @@ export interface TextGenerateOptions {
   temperature?: number; // Only allowed when reasoningEffort="none"
   jsonSchema?: StructuredOutputSchema; // For structured JSON output (not supported by pro models)
   attachments?: Attachment[]; // File attachments for multimodal input
+  enableTools?: boolean; // Enable built-in file tools (read_file, list_directory, grep_search)
 }
 
 // Web search options
