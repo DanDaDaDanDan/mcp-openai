@@ -11,6 +11,8 @@
  * - Reasoning summaries (concise, detailed)
  */
 
+import { readFileSync, existsSync } from "fs";
+import { basename, extname } from "path";
 import OpenAI from "openai";
 import type {
   TextGenerateOptions,
@@ -18,12 +20,15 @@ import type {
   ModelInfo,
   TextProvider,
   TextModel,
+  Attachment,
 } from "../types.js";
 import {
   TEXT_MODELS,
   MODEL_IDS,
   isValidProReasoningEffort,
   supportsStructuredOutput,
+  isImageMediaType,
+  isSupportedMediaType,
   MCPError,
 } from "../types.js";
 import { logger } from "../logger.js";
@@ -33,6 +38,141 @@ import { costTracker } from "../cost-tracker.js";
 
 // Default timeout for generation requests (60 minutes for extended thinking)
 const DEFAULT_TIMEOUT_MS = 60 * 60 * 1000;
+
+// Map file extension to MIME type
+const EXT_TO_MEDIA_TYPE: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".pdf": "application/pdf",
+};
+
+/**
+ * Resolve a single attachment to a base64 data URI and metadata.
+ * Validates that exactly one source is provided and the media type is supported.
+ */
+function resolveAttachment(
+  attachment: Attachment,
+  index: number
+): { dataUri: string; mediaType: string; filename?: string; url?: string } {
+  const sources = [attachment.path, attachment.data, attachment.url].filter(Boolean);
+  if (sources.length !== 1) {
+    throw new MCPError(
+      "VALIDATION_ERROR",
+      `Attachment ${index}: exactly one of 'path', 'data', or 'url' must be provided (got ${sources.length})`
+    );
+  }
+
+  // URL source — only for images, passed directly
+  if (attachment.url) {
+    // We can't know the media type for sure from a URL, but it must be an image
+    return { dataUri: "", mediaType: "image/unknown", url: attachment.url };
+  }
+
+  let base64Data: string;
+  let mediaType: string | undefined = attachment.media_type;
+  let filename = attachment.filename;
+
+  if (attachment.path) {
+    // Read file from disk
+    const filePath = attachment.path;
+    if (!existsSync(filePath)) {
+      throw new MCPError(
+        "VALIDATION_ERROR",
+        `Attachment ${index}: file not found: ${filePath}`
+      );
+    }
+
+    const ext = extname(filePath).toLowerCase();
+    if (!mediaType) {
+      mediaType = EXT_TO_MEDIA_TYPE[ext];
+      if (!mediaType) {
+        throw new MCPError(
+          "VALIDATION_ERROR",
+          `Attachment ${index}: cannot infer media type from extension '${ext}'. Supported: ${Object.keys(EXT_TO_MEDIA_TYPE).join(", ")}`
+        );
+      }
+    }
+
+    if (!filename) {
+      filename = basename(filePath);
+    }
+
+    const fileBuffer = readFileSync(filePath);
+    base64Data = fileBuffer.toString("base64");
+  } else {
+    // Inline data
+    if (!mediaType) {
+      throw new MCPError(
+        "VALIDATION_ERROR",
+        `Attachment ${index}: 'media_type' is required when using 'data'`
+      );
+    }
+
+    // Handle both raw base64 and data URI formats
+    if (attachment.data!.startsWith("data:")) {
+      // Already a data URI — extract the base64 part
+      const match = attachment.data!.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        throw new MCPError(
+          "VALIDATION_ERROR",
+          `Attachment ${index}: invalid data URI format`
+        );
+      }
+      base64Data = match[2];
+    } else {
+      base64Data = attachment.data!;
+    }
+  }
+
+  if (!isSupportedMediaType(mediaType)) {
+    throw new MCPError(
+      "VALIDATION_ERROR",
+      `Attachment ${index}: unsupported media type '${mediaType}'. Supported: image/png, image/jpeg, image/gif, image/webp, application/pdf`
+    );
+  }
+
+  const dataUri = `data:${mediaType};base64,${base64Data}`;
+  return { dataUri, mediaType, filename };
+}
+
+/**
+ * Convert attachments to OpenAI Responses API content parts.
+ */
+function attachmentsToContentParts(
+  attachments: Attachment[]
+): Array<Record<string, any>> {
+  const parts: Array<Record<string, any>> = [];
+
+  for (let i = 0; i < attachments.length; i++) {
+    const resolved = resolveAttachment(attachments[i], i);
+
+    if (resolved.url) {
+      // URL image — pass directly
+      parts.push({
+        type: "input_image",
+        image_url: resolved.url,
+      });
+    } else if (isImageMediaType(resolved.mediaType)) {
+      // Base64 image
+      parts.push({
+        type: "input_image",
+        image_url: resolved.dataUri,
+      });
+    } else {
+      // File (PDF etc.)
+      parts.push({
+        type: "input_file",
+        filename: resolved.filename || `attachment_${i}`,
+        file_data: resolved.dataUri,
+      });
+    }
+  }
+
+  return parts;
+}
 
 export class OpenAITextProvider implements TextProvider {
   private client: OpenAI;
@@ -59,6 +199,7 @@ export class OpenAITextProvider implements TextProvider {
       maxOutputTokens = 8192,
       temperature,
       jsonSchema,
+      attachments,
     } = options;
 
     const startTime = Date.now();
@@ -97,22 +238,34 @@ export class OpenAITextProvider implements TextProvider {
       maxOutputTokens,
       temperature,
       hasJsonSchema: !!jsonSchema,
+      attachmentCount: attachments?.length || 0,
     });
 
-    // Build the input - either string or message array
-    let input: string | Array<{ role: string; content: string | Array<{ type: string; text: string }> }>;
+    // Convert attachments to content parts if present
+    const attachmentParts = attachments?.length
+      ? attachmentsToContentParts(attachments)
+      : [];
 
-    if (systemPrompt) {
-      input = [
-        {
+    // Build the input - use array form when we have system prompt or attachments
+    let input: any;
+
+    if (systemPrompt || attachmentParts.length > 0) {
+      const userContent: Array<Record<string, any>> = [
+        { type: "input_text", text: prompt },
+        ...attachmentParts,
+      ];
+
+      input = [];
+      if (systemPrompt) {
+        input.push({
           role: "developer",
           content: [{ type: "input_text", text: systemPrompt }],
-        },
-        {
-          role: "user",
-          content: [{ type: "input_text", text: prompt }],
-        },
-      ];
+        });
+      }
+      input.push({
+        role: "user",
+        content: userContent,
+      });
     } else {
       input = prompt;
     }

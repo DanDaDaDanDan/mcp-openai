@@ -165,11 +165,48 @@ const response = await client.responses.create({
 const result = await client.responses.retrieve(response.id);
 ```
 
+## File Attachments (Multimodal Input)
+
+The `generate_text` tool supports file attachments for multimodal input via the `attachments` array parameter.
+
+### Attachment Sources (exactly one required per attachment)
+
+| Field | Description |
+|-------|-------------|
+| `path` | Local file path — server reads and base64-encodes. Media type inferred from extension. |
+| `data` | Base64-encoded content (raw or data URI). Requires `media_type`. |
+| `url` | Image URL — passed directly to API. Only for images. |
+
+### Optional Fields
+
+| Field | Description |
+|-------|-------------|
+| `media_type` | MIME type. Required with `data`, inferred from `path`. |
+| `filename` | Filename hint. Auto-detected from `path`. |
+
+### Supported Media Types
+
+- **Images**: `image/png`, `image/jpeg`, `image/gif`, `image/webp` → OpenAI `input_image`
+- **Files**: `application/pdf` → OpenAI `input_file`
+
+### Example
+
+```typescript
+generate_text({
+  prompt: "Describe this image",
+  attachments: [
+    { path: "/path/to/photo.jpg" },                           // local file
+    { data: "iVBOR...", media_type: "image/png" },             // base64
+    { url: "https://example.com/image.png" },                  // URL
+  ]
+})
+```
+
 ## Tools
 
 | Tool | Description | Models |
 |------|-------------|--------|
-| `generate_text` | Text generation with reasoning controls and structured outputs | gpt-5.4, gpt-5.4-pro |
+| `generate_text` | Text generation with reasoning controls, structured outputs, and file attachments | gpt-5.4, gpt-5.4-pro |
 | `web_search` | Web search with source citations | gpt-5.4 |
 | `deep_research` | Autonomous web research (5-30 min) | o3-deep-research, o4-mini-deep-research |
 | `list_models` | List available models | Static |

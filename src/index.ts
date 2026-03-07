@@ -92,6 +92,7 @@ const TOOLS = [
     name: "generate_text",
     description:
       "Generate text using GPT-5.4 family with optional reasoning + verbosity controls. " +
+      "Supports file attachments (images, PDFs) for multimodal input. " +
       "Use this for complex reasoning, writing, analysis, or any text generation task.",
     inputSchema: {
       type: "object" as const,
@@ -169,6 +170,39 @@ const TOOLS = [
             },
           },
           required: ["name", "schema"],
+        },
+        attachments: {
+          type: "array",
+          description:
+            "File attachments for multimodal input (images, PDFs). " +
+            "Each attachment must provide exactly one of: 'path' (local file), 'data' (base64), or 'url' (image URL).",
+          items: {
+            type: "object",
+            properties: {
+              path: {
+                type: "string",
+                description: "Local file path — server reads and base64-encodes. Media type inferred from extension.",
+              },
+              data: {
+                type: "string",
+                description: "Base64-encoded content (raw base64 or data URI). Requires media_type.",
+              },
+              url: {
+                type: "string",
+                description: "Image URL — passed directly to the API. Only supported for images.",
+              },
+              media_type: {
+                type: "string",
+                description:
+                  "MIME type (required with 'data', inferred from 'path'). " +
+                  "Supported: image/png, image/jpeg, image/gif, image/webp, application/pdf",
+              },
+              filename: {
+                type: "string",
+                description: "Optional filename hint (auto-detected from path)",
+              },
+            },
+          },
         },
       },
       required: ["prompt"],
@@ -342,6 +376,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
       max_output_tokens: maxOutputTokens,
       temperature,
       json_schema: jsonSchema,
+      attachments,
     } = args as {
       prompt: string;
       system_prompt?: string;
@@ -357,6 +392,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
         schema: Record<string, unknown>;
         strict?: boolean;
       };
+      attachments?: Array<{
+        path?: string;
+        data?: string;
+        url?: string;
+        media_type?: string;
+        filename?: string;
+      }>;
     };
 
     // Validate prompt
@@ -396,6 +438,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
         maxOutputTokens,
         temperature,
         jsonSchema,
+        attachments,
       });
 
       // Return successful result

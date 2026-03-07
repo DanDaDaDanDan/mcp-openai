@@ -75,6 +75,39 @@ export type ReasoningSummary = (typeof REASONING_SUMMARIES)[number];
 // Input Types (Tool Parameters)
 // ============================================================================
 
+// File attachment for multimodal input
+export interface Attachment {
+  path?: string;       // Local file path — server reads and base64-encodes
+  data?: string;       // Base64-encoded content (raw or data URI)
+  url?: string;        // Image URL (passed directly to API)
+  media_type?: string; // MIME type (required with data, inferred from path)
+  filename?: string;   // Optional filename hint (auto-detected from path)
+}
+
+// Supported image MIME types
+export const IMAGE_MEDIA_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+] as const;
+
+// Supported file MIME types
+export const FILE_MEDIA_TYPES = [
+  "application/pdf",
+] as const;
+
+// All supported attachment MIME types
+export const SUPPORTED_MEDIA_TYPES = [...IMAGE_MEDIA_TYPES, ...FILE_MEDIA_TYPES] as const;
+
+export function isImageMediaType(mediaType: string): boolean {
+  return IMAGE_MEDIA_TYPES.includes(mediaType as any);
+}
+
+export function isSupportedMediaType(mediaType: string): boolean {
+  return SUPPORTED_MEDIA_TYPES.includes(mediaType as any);
+}
+
 // Structured output configuration
 export interface StructuredOutputSchema {
   name: string;
@@ -102,6 +135,7 @@ export interface TextGenerateOptions {
   maxOutputTokens?: number;
   temperature?: number; // Only allowed when reasoningEffort="none"
   jsonSchema?: StructuredOutputSchema; // For structured JSON output (not supported by pro models)
+  attachments?: Attachment[]; // File attachments for multimodal input
 }
 
 // Web search options
