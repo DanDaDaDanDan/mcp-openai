@@ -43,7 +43,7 @@ export class OpenAIWebSearchProvider implements WebSearchProvider {
   async search(options: WebSearchOptions): Promise<WebSearchResult> {
     const {
       query,
-      model = "gpt-5.2",
+      model = "gpt-5.4",
       allowedDomains = [],
       includeSources = true,
     } = options;
@@ -243,7 +243,7 @@ export class OpenAIWebSearchProvider implements WebSearchProvider {
   getModelInfo(): ModelInfo {
     return {
       id: "web-search",
-      name: "Web Search (GPT-5.2)",
+      name: "Web Search (GPT-5.4)",
       provider: "openai",
       type: "web-search",
       description:

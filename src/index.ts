@@ -4,17 +4,16 @@
  * MCP Server: mcp-openai
  *
  * Provides text generation, web search, and deep research capabilities
- * using OpenAI's GPT-5.2 family and deep research models.
+ * using OpenAI's GPT-5.4 family and deep research models.
  *
  * Models:
- *   - gpt-5.2: Best general choice for coding + agentic tasks (default)
- *   - gpt-5.2-pro: Max accuracy for hardest problems
- *   - gpt-5.2-chat-latest: ChatGPT snapshot testing
+ *   - gpt-5.4: Best general choice for coding + agentic tasks (default)
+ *   - gpt-5.4-pro: Max accuracy for hardest problems
  *   - o3-deep-research: Best deep research specialist
  *   - o4-mini-deep-research: Faster/cheaper deep research
  *
  * Tools:
- *   - generate_text: Generate text using GPT-5.2 family with reasoning controls
+ *   - generate_text: Generate text using GPT-5.4 family with reasoning controls
  *   - web_search: Search the web with source citations
  *   - deep_research: Long-form research using deep research models
  *   - list_models: List available models and their capabilities
@@ -92,7 +91,7 @@ const TOOLS = [
   {
     name: "generate_text",
     description:
-      "Generate text using GPT-5.2 family with optional reasoning + verbosity controls. " +
+      "Generate text using GPT-5.4 family with optional reasoning + verbosity controls. " +
       "Use this for complex reasoning, writing, analysis, or any text generation task.",
     inputSchema: {
       type: "object" as const,
@@ -110,14 +109,14 @@ const TOOLS = [
           type: "string",
           enum: [...TEXT_MODELS],
           description:
-            "Model to use: 'gpt-5.2' (default, best general), 'gpt-5.2-pro' (max accuracy, slow), 'gpt-5.2-chat-latest' (ChatGPT snapshot)",
-          default: "gpt-5.2",
+            "Model to use: 'gpt-5.4' (default, best general, 1.05M context), 'gpt-5.4-pro' (max accuracy, slow)",
+          default: "gpt-5.4",
         },
         reasoning_effort: {
           type: "string",
           enum: [...REASONING_EFFORTS],
           description:
-            "Reasoning depth: 'none' (default), 'low', 'medium', 'high', 'xhigh'. Note: gpt-5.2-pro only supports medium/high/xhigh.",
+            "Reasoning depth: 'none' (default), 'low', 'medium', 'high', 'xhigh'. Note: gpt-5.4-pro only supports medium/high/xhigh.",
           default: "none",
         },
         verbosity: {
@@ -148,7 +147,7 @@ const TOOLS = [
         json_schema: {
           type: "object",
           description:
-            "Structured output configuration. Only supported by gpt-5.2 and gpt-5.2-chat-latest (NOT gpt-5.2-pro). " +
+            "Structured output configuration. Supported by gpt-5.4 only (NOT gpt-5.4-pro). " +
             "When provided, the model will output valid JSON matching the schema.",
           properties: {
             name: {
@@ -190,8 +189,8 @@ const TOOLS = [
         model: {
           type: "string",
           enum: [...WEB_SEARCH_MODELS],
-          description: "Model to use: 'gpt-5.2' (default), 'gpt-5.2-chat-latest'",
-          default: "gpt-5.2",
+          description: "Model to use: 'gpt-5.4' (default)",
+          default: "gpt-5.4",
         },
         allowed_domains: {
           type: "array",

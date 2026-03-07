@@ -2,7 +2,7 @@
  * OpenAI Model Pricing and Cost Calculation
  *
  * Pricing source: https://openai.com/api/pricing/
- * Last updated: January 2026
+ * Last updated: March 2026
  */
 
 // ============================================================================
@@ -27,18 +27,14 @@ export interface CostInfo {
 // ============================================================================
 
 export const OPENAI_PRICING: Record<string, TokenPricing> = {
-  // GPT-5.2 family
-  "gpt-5.2": {
-    input: 1.75,
-    output: 14.0,
+  // GPT-5.4 family
+  "gpt-5.4": {
+    input: 2.5,
+    output: 15.0,
   },
-  "gpt-5.2-pro": {
-    input: 21.0,
-    output: 168.0,
-  },
-  "gpt-5.2-chat-latest": {
-    input: 1.75,
-    output: 14.0,
+  "gpt-5.4-pro": {
+    input: 30.0,
+    output: 180.0,
   },
   // Deep research models
   "o3-deep-research": {

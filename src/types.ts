@@ -6,8 +6,8 @@
 // Model Constants
 // ============================================================================
 
-// Text generation models (GPT-5.2 family)
-export const TEXT_MODELS = ["gpt-5.2", "gpt-5.2-pro", "gpt-5.2-chat-latest"] as const;
+// Text generation models (GPT-5.4 family)
+export const TEXT_MODELS = ["gpt-5.4", "gpt-5.4-pro"] as const;
 export type TextModel = (typeof TEXT_MODELS)[number];
 
 // Deep research models
@@ -15,7 +15,7 @@ export const DEEP_RESEARCH_MODELS = ["o3-deep-research", "o4-mini-deep-research"
 export type DeepResearchModel = (typeof DEEP_RESEARCH_MODELS)[number];
 
 // Web search models (subset of text models that support web search)
-export const WEB_SEARCH_MODELS = ["gpt-5.2", "gpt-5.2-chat-latest"] as const;
+export const WEB_SEARCH_MODELS = ["gpt-5.4"] as const;
 export type WebSearchModel = (typeof WEB_SEARCH_MODELS)[number];
 
 // All supported models
@@ -23,9 +23,8 @@ export const ALL_MODELS = [...TEXT_MODELS, ...DEEP_RESEARCH_MODELS] as const;
 
 // Model ID mapping (for API calls)
 export const MODEL_IDS: Record<string, string> = {
-  "gpt-5.2": "gpt-5.2",
-  "gpt-5.2-pro": "gpt-5.2-pro",
-  "gpt-5.2-chat-latest": "gpt-5.2-chat-latest",
+  "gpt-5.4": "gpt-5.4",
+  "gpt-5.4-pro": "gpt-5.4-pro",
   "o3-deep-research": "o3-deep-research",
   "o4-mini-deep-research": "o4-mini-deep-research",
 };
@@ -50,7 +49,7 @@ export function isWebSearchModel(model: string): model is WebSearchModel {
 export const REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh"] as const;
 export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
 
-// gpt-5.2-pro only supports medium, high, xhigh
+// gpt-5.4-pro only supports medium, high, xhigh
 export const PRO_REASONING_EFFORTS = ["medium", "high", "xhigh"] as const;
 export type ProReasoningEffort = (typeof PRO_REASONING_EFFORTS)[number];
 
@@ -85,7 +84,7 @@ export interface StructuredOutputSchema {
 }
 
 // Models that support structured outputs
-export const STRUCTURED_OUTPUT_MODELS = ["gpt-5.2", "gpt-5.2-chat-latest"] as const;
+export const STRUCTURED_OUTPUT_MODELS = ["gpt-5.4"] as const;
 export type StructuredOutputModel = (typeof STRUCTURED_OUTPUT_MODELS)[number];
 
 export function supportsStructuredOutput(model: string): model is StructuredOutputModel {
@@ -102,7 +101,7 @@ export interface TextGenerateOptions {
   reasoningSummary?: ReasoningSummary;
   maxOutputTokens?: number;
   temperature?: number; // Only allowed when reasoningEffort="none"
-  jsonSchema?: StructuredOutputSchema; // For structured JSON output (not supported by gpt-5.2-pro)
+  jsonSchema?: StructuredOutputSchema; // For structured JSON output (not supported by pro models)
 }
 
 // Web search options

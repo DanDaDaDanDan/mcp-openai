@@ -1,10 +1,9 @@
 /**
- * OpenAI GPT-5.2 text provider using the Responses API
+ * OpenAI text provider using the Responses API
  *
  * Supports:
- * - gpt-5.2 (default): Best general choice for coding + agentic tasks
- * - gpt-5.2-pro: Max accuracy, supports reasoning effort medium/high/xhigh only
- * - gpt-5.2-chat-latest: ChatGPT snapshot testing
+ * - gpt-5.4 (default): Best general choice, 1.05M context
+ * - gpt-5.4-pro: Max accuracy, reasoning medium/high/xhigh only, 1.05M context
  *
  * Features:
  * - Reasoning effort control (none, low, medium, high, xhigh)
@@ -53,7 +52,7 @@ export class OpenAITextProvider implements TextProvider {
     const {
       prompt,
       systemPrompt,
-      model = "gpt-5.2",
+      model = "gpt-5.4",
       reasoningEffort = "none",
       verbosity = "medium",
       reasoningSummary = "off",
@@ -64,11 +63,11 @@ export class OpenAITextProvider implements TextProvider {
 
     const startTime = Date.now();
 
-    // Validation: gpt-5.2-pro only supports medium/high/xhigh reasoning effort
-    if (model === "gpt-5.2-pro" && !isValidProReasoningEffort(reasoningEffort)) {
+    // Validation: gpt-5.4-pro only supports medium/high/xhigh reasoning effort
+    if (model === "gpt-5.4-pro" && !isValidProReasoningEffort(reasoningEffort)) {
       throw new MCPError(
         "VALIDATION_ERROR",
-        `gpt-5.2-pro only supports reasoning effort: medium, high, xhigh. Got: ${reasoningEffort}`
+        `gpt-5.4-pro only supports reasoning effort: medium, high, xhigh. Got: ${reasoningEffort}`
       );
     }
 
@@ -287,40 +286,29 @@ export class OpenAITextProvider implements TextProvider {
     }
   }
 
-  getModelInfo(model: TextModel = "gpt-5.2"): ModelInfo {
+  getModelInfo(model: TextModel = "gpt-5.4"): ModelInfo {
     const modelInfoMap: Record<TextModel, ModelInfo> = {
-      "gpt-5.2": {
-        id: "gpt-5.2",
-        name: "GPT-5.2",
+      "gpt-5.4": {
+        id: "gpt-5.4",
+        name: "GPT-5.4",
         provider: "openai",
         type: "text",
-        contextWindow: 400000,
+        contextWindow: 1050000,
         maxOutput: 128000,
         supportsReasoning: true,
         description:
-          "Best general choice for coding + agentic tasks. Supports reasoning effort: none, low, medium, high, xhigh.",
+          "Best general choice for coding + agentic tasks. 1.05M context. Supports reasoning effort: none, low, medium, high, xhigh.",
       },
-      "gpt-5.2-pro": {
-        id: "gpt-5.2-pro",
-        name: "GPT-5.2 Pro",
+      "gpt-5.4-pro": {
+        id: "gpt-5.4-pro",
+        name: "GPT-5.4 Pro",
         provider: "openai",
         type: "text",
-        contextWindow: 400000,
+        contextWindow: 1050000,
         maxOutput: 128000,
         supportsReasoning: true,
         description:
-          "Max accuracy for hardest problems. Can take minutes. Supports reasoning effort: medium, high, xhigh only.",
-      },
-      "gpt-5.2-chat-latest": {
-        id: "gpt-5.2-chat-latest",
-        name: "GPT-5.2 Chat Latest",
-        provider: "openai",
-        type: "text",
-        contextWindow: 128000,
-        maxOutput: 16384,
-        supportsReasoning: true,
-        description:
-          "Points to the GPT-5.2 snapshot used in ChatGPT. Recommended to use gpt-5.2 for most API work.",
+          "Max accuracy for hardest problems. 1.05M context. Can take minutes. Supports reasoning effort: medium, high, xhigh only.",
       },
     };
 

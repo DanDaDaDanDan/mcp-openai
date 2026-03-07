@@ -1,6 +1,6 @@
 # mcp-openai
 
-MCP server providing Claude Code access to OpenAI's GPT-5.2 models, web search, and deep research.
+MCP server providing Claude Code access to OpenAI's GPT-5.4 models, web search, and deep research.
 
 ## Philosophy
 
@@ -17,13 +17,12 @@ Do NOT use the deprecated Assistants API.
 
 ## Models
 
-### Text Generation (GPT-5.2 Family)
+### Text Generation (GPT-5.4 Family)
 
 | Friendly Name | API Model ID | Context | Max Output | Notes |
 |---------------|--------------|---------|------------|-------|
-| gpt-5.2 | `gpt-5.2` | 400K | 128K | Default. Best general choice for coding + agentic tasks |
-| gpt-5.2-pro | `gpt-5.2-pro` | 400K | 128K | Max accuracy. Can take minutes. Reasoning: medium/high/xhigh only |
-| gpt-5.2-chat-latest | `gpt-5.2-chat-latest` | 128K | 16K | ChatGPT snapshot. Use gpt-5.2 for most API work |
+| gpt-5.4 | `gpt-5.4` | 1.05M | 128K | Default. Best general choice for coding + agentic tasks |
+| gpt-5.4-pro | `gpt-5.4-pro` | 1.05M | 128K | Max accuracy. Can take minutes. Reasoning: medium/high/xhigh only |
 
 ### Deep Research
 
@@ -36,14 +35,14 @@ Do NOT use the deprecated Assistants API.
 
 ### Reasoning Effort
 
-For `gpt-5.2`, reasoning effort supports:
+For `gpt-5.4`, reasoning effort supports:
 - `none` (default)
 - `low`
 - `medium`
 - `high`
 - `xhigh`
 
-For `gpt-5.2-pro`, supported efforts are **only**: `medium`, `high`, `xhigh`.
+For `gpt-5.4-pro`, supported efforts are **only**: `medium`, `high`, `xhigh`.
 
 ### Parameter Compatibility
 
@@ -67,7 +66,7 @@ Optional user-visible reasoning summaries.
 
 ## Structured Outputs
 
-Request JSON output conforming to a JSON Schema. Only supported by `gpt-5.2` and `gpt-5.2-chat-latest` (NOT `gpt-5.2-pro`).
+Request JSON output conforming to a JSON Schema. Supported by `gpt-5.4` only (NOT `gpt-5.4-pro`).
 
 ### Configuration
 
@@ -108,7 +107,7 @@ json_schema: {
 1. Use `additionalProperties: false` in schemas for strict validation
 2. Mark all required fields in the `required` array
 3. Keep schemas simple for reliable output
-4. Do NOT use with `gpt-5.2-pro` (will return validation error)
+4. Do NOT use with `gpt-5.4-pro` — will return validation error
 
 ## Architecture
 
@@ -130,7 +129,7 @@ src/
 
 ```typescript
 const response = await client.responses.create({
-  model: "gpt-5.2",
+  model: "gpt-5.4",
   input: "Your prompt here",
   reasoning: { effort: "high" },  // optional
   text: { verbosity: "medium" },  // optional
@@ -144,7 +143,7 @@ console.log(response.output_text);
 
 ```typescript
 const response = await client.responses.create({
-  model: "gpt-5.2",
+  model: "gpt-5.4",
   input: "What changed recently?",
   tools: [{ type: "web_search" }],
   include: ["web_search_call.action.sources"],
@@ -170,8 +169,8 @@ const result = await client.responses.retrieve(response.id);
 
 | Tool | Description | Models |
 |------|-------------|--------|
-| `generate_text` | Text generation with reasoning controls and structured outputs | gpt-5.2, gpt-5.2-pro, gpt-5.2-chat-latest |
-| `web_search` | Web search with source citations | gpt-5.2, gpt-5.2-chat-latest |
+| `generate_text` | Text generation with reasoning controls and structured outputs | gpt-5.4, gpt-5.4-pro |
+| `web_search` | Web search with source citations | gpt-5.4 |
 | `deep_research` | Autonomous web research (5-30 min) | o3-deep-research, o4-mini-deep-research |
 | `list_models` | List available models | Static |
 
