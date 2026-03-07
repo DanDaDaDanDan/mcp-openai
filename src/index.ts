@@ -266,8 +266,8 @@ const TOOLS = [
         timeout_minutes: {
           type: "number",
           description:
-            "Maximum time to wait for research completion in minutes (default: 60, max: 120)",
-          default: 60,
+            "Maximum time to wait for research completion in minutes (default: 120, max: 120)",
+          default: 120,
           minimum: 5,
           maximum: 120,
         },
@@ -597,14 +597,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
       };
     }
 
-    // Convert timeout from minutes to milliseconds (default 60 minutes)
-    const timeoutMs = (timeoutMinutes || 60) * 60 * 1000;
+    // Convert timeout from minutes to milliseconds (default 120 minutes)
+    const timeoutMs = (timeoutMinutes || 120) * 60 * 1000;
 
     try {
       logger.info("Starting deep research", {
         queryLength: query.length,
         model: model || "o3-deep-research",
-        timeoutMinutes: timeoutMinutes || 60,
+        timeoutMinutes: timeoutMinutes || 120,
       });
 
       const result = await deepResearchProvider.research({

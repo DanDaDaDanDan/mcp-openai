@@ -36,8 +36,8 @@ import { withRetry, withTimeout } from "../retry.js";
 import { calculateCost } from "../pricing.js";
 import { costTracker } from "../cost-tracker.js";
 
-// Default timeout for generation requests (60 minutes for extended thinking)
-const DEFAULT_TIMEOUT_MS = 60 * 60 * 1000;
+// Default timeout for generation requests (120 minutes for extended thinking)
+const DEFAULT_TIMEOUT_MS = 120 * 60 * 1000;
 
 // Map file extension to MIME type
 const EXT_TO_MEDIA_TYPE: Record<string, string> = {
@@ -184,6 +184,7 @@ export class OpenAITextProvider implements TextProvider {
     this.client = new OpenAI({
       apiKey,
       organization: orgId,
+      timeout: DEFAULT_TIMEOUT_MS,
     });
     logger.info("OpenAI text provider initialized", { models: TEXT_MODELS });
   }

@@ -20,8 +20,8 @@ import { withRetry, withTimeout } from "../retry.js";
 import { calculateCost } from "../pricing.js";
 import { costTracker } from "../cost-tracker.js";
 
-// Default timeout for web search requests (60 minutes)
-const DEFAULT_TIMEOUT_MS = 60 * 60 * 1000;
+// Default timeout for web search requests (120 minutes)
+const DEFAULT_TIMEOUT_MS = 120 * 60 * 1000;
 
 // Maximum allowed domains for filtering
 const MAX_ALLOWED_DOMAINS = 100;
@@ -36,6 +36,7 @@ export class OpenAIWebSearchProvider implements WebSearchProvider {
     this.client = new OpenAI({
       apiKey,
       organization: orgId,
+      timeout: DEFAULT_TIMEOUT_MS,
     });
     logger.info("OpenAI web search provider initialized");
   }
